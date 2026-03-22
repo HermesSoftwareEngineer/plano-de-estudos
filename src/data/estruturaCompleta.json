@@ -1,0 +1,72 @@
+{
+  "descricao": "Estrutura completa de dados para o plano de estudos",
+  "estrutura": [
+    {
+      "fase": "Fase 1",
+      "areas": [
+        {
+          "nome": "Análise de Dados",
+          "conteudos": [
+            {
+              "nome": "APIs de LLM",
+              "topicos": [
+                "API REST — boas práticas de design (versionamento, status codes)"
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "fase": "Fase 2",
+      "areas": [
+        {
+          "nome": "Arquitetura de Software",
+          "conteudos": [
+            {
+              "nome": "APIs e Integrações",
+              "topicos": [
+                "Análise de crédito — Serasa, SPC, score, renda"
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "fase": "Fase 3",
+      "areas": [
+        {
+          "nome": "Cálculo (Mínimo Essencial)",
+          "conteudos": [
+            {
+              "nome": "Agentes e RAG",
+              "topicos": [
+                "Análise de demanda por bairro — sazonalidade e perfil de inquilino",
+                "Aplicações: entropia, crescimento exponencial"
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "areas_gerais": [
+    "Imobiliário",
+    "Desenvolvimento Backend",
+    "Estatística Aplicada",
+    "Financeiro Empresarial",
+    "IA Aplicada",
+    "Jurídico Imobiliário",
+    "Matemática Elementar",
+    "Operação de Locação",
+    "Python e SQL",
+    "System Design",
+    "Álgebra Linear"
+  ],
+  "instruções": {
+    "1_schema": "Execute o SQL em 'sql/schema.sql' no Supabase SQL Editor",
+    "2_dados": "Execute o SQL em 'sql/insert-data.sql' para popular os dados",
+    "3_alternativa": "Ou use a interface em http://localhost:5174/admin-seed para popular via UI"
+  }
+}
