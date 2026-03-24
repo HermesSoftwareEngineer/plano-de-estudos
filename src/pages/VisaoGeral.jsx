@@ -50,6 +50,23 @@ function overlaps(startA, endA, startB, endB) {
   return startA <= endB && endA >= startB
 }
 
+function getOverlapDays(startA, endA, startB, endB) {
+  const start = startA > startB ? startA : startB
+  const end = endA < endB ? endA : endB
+  if (start > end) return 0
+  const msPerDay = 24 * 60 * 60 * 1000
+  return Math.floor((end - start) / msPerDay) + 1
+}
+
+function getMetaHoursForRange(meta, rangeStart, rangeEnd) {
+  const metaStart = parseDateOnly(meta.data_inicio)
+  const metaEnd = parseDateOnly(meta.data_fim)
+  if (!metaStart || !metaEnd) return 0
+  const overlapDays = getOverlapDays(metaStart, metaEnd, rangeStart, rangeEnd)
+  if (overlapDays <= 0) return 0
+  return (Number(meta.horas_meta_semana || 0) * overlapDays) / 7
+}
+
 function buildMonthWeekBuckets(year, month) {
   const daysInMonth = new Date(year, month + 1, 0).getDate()
 
@@ -179,14 +196,8 @@ export function VisaoGeral() {
     })
 
     activeMetas.forEach((meta) => {
-      const metaStart = parseDateOnly(meta.data_inicio)
-      const metaEnd = parseDateOnly(meta.data_fim)
-      if (!metaStart || !metaEnd) return
-
       base.forEach((bucket) => {
-        if (overlaps(metaStart, metaEnd, bucket.start, bucket.end)) {
-          bucket.meta += Number(meta.horas_meta_semana || 0)
-        }
+        bucket.meta += getMetaHoursForRange(meta, bucket.start, bucket.end)
       })
     })
 
@@ -223,15 +234,8 @@ export function VisaoGeral() {
     const metaByArea = {}
     activeMetas.forEach((meta) => {
       if (!meta.area || meta.area === '-') return
-      const metaStart = parseDateOnly(meta.data_inicio)
-      const metaEnd = parseDateOnly(meta.data_fim)
-      if (!metaStart || !metaEnd) return
-
-      weekBuckets.forEach((bucket) => {
-        if (overlaps(metaStart, metaEnd, bucket.start, bucket.end)) {
-          metaByArea[meta.area] = (metaByArea[meta.area] || 0) + Number(meta.horas_meta_semana || 0)
-        }
-      })
+      // For this chart, compare against the configured weekly target value per area.
+      metaByArea[meta.area] = (metaByArea[meta.area] || 0) + Number(meta.horas_meta_semana || 0)
     })
 
     const allAreas = new Set([...Object.keys(realizedByArea), ...Object.keys(metaByArea)])
@@ -245,7 +249,7 @@ export function VisaoGeral() {
         return { area, realizado, meta, gap, percentual }
       })
       .sort((a, b) => a.gap - b.gap)
-  }, [monthRecords, activeMetas, weekBuckets])
+  }, [monthRecords, activeMetas])
 
   const areaChartData = useMemo(() => {
     if (!selectedArea) return areaPerformance
@@ -278,18 +282,9 @@ export function VisaoGeral() {
       const monthMeta = phaseMetas
         .filter((meta) => isMetaActiveInMonth(meta, year, idx))
         .reduce((sum, meta) => {
-          const metaStart = parseDateOnly(meta.data_inicio)
-          const metaEnd = parseDateOnly(meta.data_fim)
-          if (!metaStart || !metaEnd) return sum
-          const monthBuckets = buildMonthWeekBuckets(year, idx)
-          const monthMetaValue = monthBuckets.reduce(
-            (inner, bucket) =>
-              overlaps(metaStart, metaEnd, bucket.start, bucket.end)
-                ? inner + Number(meta.horas_meta_semana || 0)
-                : inner,
-            0,
-          )
-          return sum + monthMetaValue
+          const monthStart = new Date(year, idx, 1)
+          const monthEnd = new Date(year, idx + 1, 0)
+          return sum + getMetaHoursForRange(meta, monthStart, monthEnd)
         }, 0)
 
       accMeta += monthMeta
@@ -320,17 +315,9 @@ export function VisaoGeral() {
       const planned = activeMetas
         .filter((meta) => meta.fase === currentPhase)
         .reduce((sum, meta) => {
-          const metaStart = parseDateOnly(meta.data_inicio)
-          const metaEnd = parseDateOnly(meta.data_fim)
-          if (!metaStart || !metaEnd) return sum
-          const inMonthMeta = weekBuckets.reduce(
-            (inner, bucket) =>
-              overlaps(metaStart, metaEnd, bucket.start, bucket.end)
-                ? inner + Number(meta.horas_meta_semana || 0)
-                : inner,
-            0,
-          )
-          return sum + inMonthMeta
+          const monthStart = new Date(year, month, 1)
+          const monthEnd = new Date(year, month + 1, 0)
+          return sum + getMetaHoursForRange(meta, monthStart, monthEnd)
         }, 0)
       const completed = monthRecords
         .filter((item) => item.fase === currentPhase)
@@ -354,7 +341,7 @@ export function VisaoGeral() {
         percentual,
       }
     })
-  }, [activeMetas, monthRecords, daysInMonth, month, year, today, weekBuckets])
+  }, [activeMetas, monthRecords, daysInMonth, month, year, today])
 
   const monthlyTitle = new Date(year, month, 1).toLocaleString('pt-BR', { month: 'long', year: 'numeric' })
 
