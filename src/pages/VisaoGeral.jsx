@@ -30,9 +30,17 @@ function formatHours(value) {
   return `${Number(value || 0).toFixed(1)}h`
 }
 
+function parseDateOnly(dateValue) {
+  if (!dateValue) return null
+  const [year, month, day] = String(dateValue).split('-').map(Number)
+  if (!year || !month || !day) return null
+  return new Date(year, month - 1, day)
+}
+
 function isMetaActiveInMonth(meta, year, month) {
-  const start = new Date(meta.data_inicio)
-  const end = new Date(meta.data_fim)
+  const start = parseDateOnly(meta.data_inicio)
+  const end = parseDateOnly(meta.data_fim)
+  if (!start || !end) return false
   const monthStart = new Date(year, month, 1)
   const monthEnd = new Date(year, month + 1, 0)
   return start <= monthEnd && end >= monthStart
@@ -121,10 +129,15 @@ export function VisaoGeral() {
   const years = useMemo(() => {
     const values = new Set()
 
-    records.forEach((item) => values.add(new Date(item.data).getFullYear()))
+    records.forEach((item) => {
+      const date = parseDateOnly(item.data)
+      if (date) values.add(date.getFullYear())
+    })
     metas.forEach((item) => {
-      values.add(new Date(item.data_inicio).getFullYear())
-      values.add(new Date(item.data_fim).getFullYear())
+      const start = parseDateOnly(item.data_inicio)
+      const end = parseDateOnly(item.data_fim)
+      if (start) values.add(start.getFullYear())
+      if (end) values.add(end.getFullYear())
     })
 
     values.add(today.getFullYear())
@@ -133,7 +146,8 @@ export function VisaoGeral() {
 
   const monthRecords = useMemo(() => {
     return records.filter((item) => {
-      const d = new Date(item.data)
+      const d = parseDateOnly(item.data)
+      if (!d) return false
       const inMonth = d.getFullYear() === year && d.getMonth() === month
       const inPhase = phase === 'Todas' || item.fase === phase
       return inMonth && inPhase
@@ -157,15 +171,17 @@ export function VisaoGeral() {
     const base = weekBuckets.map((bucket) => ({ ...bucket, meta: 0, realizado: 0 }))
 
     monthRecords.forEach((item) => {
-      const d = new Date(item.data)
+      const d = parseDateOnly(item.data)
+      if (!d) return
       const idx = base.findIndex((bucket) => d >= bucket.start && d <= bucket.end)
       if (idx < 0) return
       base[idx].realizado += Number(item.horas || 0)
     })
 
     activeMetas.forEach((meta) => {
-      const metaStart = new Date(meta.data_inicio)
-      const metaEnd = new Date(meta.data_fim)
+      const metaStart = parseDateOnly(meta.data_inicio)
+      const metaEnd = parseDateOnly(meta.data_fim)
+      if (!metaStart || !metaEnd) return
 
       base.forEach((bucket) => {
         if (overlaps(metaStart, metaEnd, bucket.start, bucket.end)) {
@@ -207,8 +223,9 @@ export function VisaoGeral() {
     const metaByArea = {}
     activeMetas.forEach((meta) => {
       if (!meta.area || meta.area === '-') return
-      const metaStart = new Date(meta.data_inicio)
-      const metaEnd = new Date(meta.data_fim)
+      const metaStart = parseDateOnly(meta.data_inicio)
+      const metaEnd = parseDateOnly(meta.data_fim)
+      if (!metaStart || !metaEnd) return
 
       weekBuckets.forEach((bucket) => {
         if (overlaps(metaStart, metaEnd, bucket.start, bucket.end)) {
@@ -252,7 +269,8 @@ export function VisaoGeral() {
     return monthLabels.map((label, idx) => {
       const monthReal = records
         .filter((item) => {
-          const d = new Date(item.data)
+          const d = parseDateOnly(item.data)
+          if (!d) return false
           return d.getFullYear() === year && d.getMonth() === idx && (phase === 'Todas' || item.fase === phase)
         })
         .reduce((sum, item) => sum + Number(item.horas || 0), 0)
@@ -260,8 +278,9 @@ export function VisaoGeral() {
       const monthMeta = phaseMetas
         .filter((meta) => isMetaActiveInMonth(meta, year, idx))
         .reduce((sum, meta) => {
-          const metaStart = new Date(meta.data_inicio)
-          const metaEnd = new Date(meta.data_fim)
+          const metaStart = parseDateOnly(meta.data_inicio)
+          const metaEnd = parseDateOnly(meta.data_fim)
+          if (!metaStart || !metaEnd) return sum
           const monthBuckets = buildMonthWeekBuckets(year, idx)
           const monthMetaValue = monthBuckets.reduce(
             (inner, bucket) =>
@@ -301,8 +320,9 @@ export function VisaoGeral() {
       const planned = activeMetas
         .filter((meta) => meta.fase === currentPhase)
         .reduce((sum, meta) => {
-          const metaStart = new Date(meta.data_inicio)
-          const metaEnd = new Date(meta.data_fim)
+          const metaStart = parseDateOnly(meta.data_inicio)
+          const metaEnd = parseDateOnly(meta.data_fim)
+          if (!metaStart || !metaEnd) return sum
           const inMonthMeta = weekBuckets.reduce(
             (inner, bucket) =>
               overlaps(metaStart, metaEnd, bucket.start, bucket.end)
